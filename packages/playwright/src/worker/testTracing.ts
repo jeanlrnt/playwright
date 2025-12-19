@@ -35,7 +35,7 @@ const version: trace.VERSION = 8;
 let traceOrdinal = 0;
 
 type TraceFixtureValue =  PlaywrightWorkerOptions['trace'] | undefined;
-type TraceOptions = { screenshots: boolean, snapshots: boolean, sources: boolean, attachments: boolean, _live: boolean, mode: TraceMode };
+type TraceOptions = { screenshots: boolean, snapshots: boolean, sources: boolean, attachments: boolean, _live: boolean, mode: TraceMode, retainLastSeconds?: number };
 
 export class TestTracing {
   private _testInfo: TestInfoImpl;
@@ -87,7 +87,7 @@ export class TestTracing {
   }
 
   async startIfNeeded(value: TraceFixtureValue) {
-    const defaultTraceOptions: TraceOptions = { screenshots: true, snapshots: true, sources: true, attachments: true, _live: false, mode: 'off' };
+    const defaultTraceOptions: TraceOptions = { screenshots: true, snapshots: true, sources: true, attachments: true, _live: false, mode: 'off', retainLastSeconds: undefined };
 
     if (!value) {
       this._options = defaultTraceOptions;
@@ -178,8 +178,40 @@ export class TestTracing {
 
     const zipFile = new yazl.ZipFile();
 
+    // Filter trace events based on retainLastSeconds
+    let eventsToInclude = this._traceEvents;
+    if (this._options?.retainLastSeconds !== undefined && eventsToInclude.length > 0) {
+      // Find the latest event with a timestamp
+      let lastEventTime = 0;
+      for (let i = eventsToInclude.length - 1; i >= 0; i--) {
+        const event = eventsToInclude[i] as any;
+        if (event.monotonicTime) {
+          lastEventTime = event.monotonicTime;
+          break;
+        } else if (event.endTime) {
+          lastEventTime = event.endTime;
+          break;
+        } else if (event.startTime) {
+          lastEventTime = event.startTime;
+          break;
+        } else if (event.timestamp) {
+          lastEventTime = event.timestamp;
+          break;
+        }
+      }
+      
+      if (lastEventTime > 0) {
+        const cutoffTime = lastEventTime - (this._options.retainLastSeconds * 1000);
+        eventsToInclude = eventsToInclude.filter(event => {
+          const e = event as any;
+          const eventTime = e.monotonicTime || e.endTime || e.startTime || e.timestamp || 0;
+          return eventTime >= cutoffTime || eventTime === 0;  // Keep events without timestamps
+        });
+      }
+    }
+
     if (!this._options?.attachments) {
-      for (const event of this._traceEvents) {
+      for (const event of eventsToInclude) {
         if (event.type === 'after')
           delete event.attachments;
       }
@@ -187,7 +219,7 @@ export class TestTracing {
 
     if (this._options?.sources) {
       const sourceFiles = new Set<string>();
-      for (const event of this._traceEvents) {
+      for (const event of eventsToInclude) {
         if (event.type === 'before') {
           for (const frame of event.stack || [])
             sourceFiles.add(frame.file);
@@ -201,7 +233,7 @@ export class TestTracing {
     }
 
     const sha1s = new Set<string>();
-    for (const event of this._traceEvents.filter(e => e.type === 'after') as trace.AfterActionTraceEvent[]) {
+    for (const event of eventsToInclude.filter(e => e.type === 'after') as trace.AfterActionTraceEvent[]) {
       for (const attachment of (event.attachments || [])) {
         let contentPromise: Promise<Buffer | undefined> | undefined;
         if (attachment.path)
@@ -224,7 +256,7 @@ export class TestTracing {
       }
     }
 
-    const traceContent = Buffer.from(this._traceEvents.map(e => JSON.stringify(e)).join('\n'));
+    const traceContent = Buffer.from(eventsToInclude.map(e => JSON.stringify(e)).join('\n'));
     zipFile.addBuffer(traceContent, testTraceEntryName);
 
     await new Promise(f => {

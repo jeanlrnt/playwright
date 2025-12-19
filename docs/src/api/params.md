@@ -790,6 +790,7 @@ When set to `minimal`, only record information necessary for routing from HAR. T
     Actual picture of each page will be scaled down if necessary to fit the specified size.
     - `width` <[int]> Video frame width.
     - `height` <[int]> Video frame height.
+  - `retainLastSeconds` ?<[int]> When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video file size, especially in failure scenarios. Optional.
 
 Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
 sure to await [`method: BrowserContext.close`] for videos to be saved.

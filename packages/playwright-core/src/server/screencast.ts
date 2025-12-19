@@ -63,10 +63,11 @@ export class Screencast {
     assert(!this._videoId);
     this._videoId = createGuid();
     const outputFile = path.join(recordVideo.dir, this._videoId + '.webm');
-    const videoOptions = {
+    const videoOptions: types.VideoOptions = {
       // validateBrowserContextOptions ensures correct video size.
       ...recordVideo.size!,
       outputFile,
+      retainLastSeconds: recordVideo.retainLastSeconds,
     };
     // Note: it is important to start video recorder before sending Screencast.startScreencast,
     // and it is equally important to send Screencast.startScreencast before sending Target.resume.

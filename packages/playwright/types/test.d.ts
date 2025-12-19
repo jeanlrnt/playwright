@@ -6912,7 +6912,7 @@ export interface PlaywrightWorkerOptions {
    *
    * Learn more about [recording trace](https://playwright.dev/docs/test-use-options#recording-options).
    */
-  trace: TraceMode | /** deprecated */ 'retry-with-trace' | { mode: TraceMode, snapshots?: boolean, screenshots?: boolean, sources?: boolean, attachments?: boolean };
+  trace: TraceMode | /** deprecated */ 'retry-with-trace' | { mode: TraceMode, snapshots?: boolean, screenshots?: boolean, sources?: boolean, attachments?: boolean, retainLastSeconds?: number };
   /**
    * Whether to record video for each test. Defaults to `'off'`.
    * - `'off'`: Do not record video.
@@ -6940,7 +6940,7 @@ export interface PlaywrightWorkerOptions {
    *
    * Learn more about [recording video](https://playwright.dev/docs/test-use-options#recording-options).
    */
-  video: VideoMode | /** deprecated */ 'retry-with-video' | { mode: VideoMode, size?: ViewportSize };
+  video: VideoMode | /** deprecated */ 'retry-with-video' | { mode: VideoMode, size?: ViewportSize, retainLastSeconds?: number };
 }
 
 export type ScreenshotMode = 'off' | 'on' | 'only-on-failure' | 'on-first-failure';

@@ -46,6 +46,7 @@ export type VideoOptions = {
   width: number,
   height: number,
   outputFile: string,
+  retainLastSeconds?: number,
 };
 
 export type ScreencastFrame = {
