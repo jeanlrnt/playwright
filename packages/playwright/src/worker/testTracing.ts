@@ -181,12 +181,33 @@ export class TestTracing {
     // Filter trace events based on retainLastSeconds
     let eventsToInclude = this._traceEvents;
     if (this._options?.retainLastSeconds !== undefined && eventsToInclude.length > 0) {
-      const lastEventTime = eventsToInclude[eventsToInclude.length - 1].monotonicTime || 0;
-      const cutoffTime = lastEventTime - (this._options.retainLastSeconds * 1000);
-      eventsToInclude = eventsToInclude.filter(event => {
-        const eventTime = event.monotonicTime || 0;
-        return eventTime >= cutoffTime;
-      });
+      // Find the latest event with a timestamp
+      let lastEventTime = 0;
+      for (let i = eventsToInclude.length - 1; i >= 0; i--) {
+        const event = eventsToInclude[i] as any;
+        if (event.monotonicTime) {
+          lastEventTime = event.monotonicTime;
+          break;
+        } else if (event.endTime) {
+          lastEventTime = event.endTime;
+          break;
+        } else if (event.startTime) {
+          lastEventTime = event.startTime;
+          break;
+        } else if (event.timestamp) {
+          lastEventTime = event.timestamp;
+          break;
+        }
+      }
+      
+      if (lastEventTime > 0) {
+        const cutoffTime = lastEventTime - (this._options.retainLastSeconds * 1000);
+        eventsToInclude = eventsToInclude.filter(event => {
+          const e = event as any;
+          const eventTime = e.monotonicTime || e.endTime || e.startTime || e.timestamp || 0;
+          return eventTime >= cutoffTime || eventTime === 0;  // Keep events without timestamps
+        });
+      }
     }
 
     if (!this._options?.attachments) {
