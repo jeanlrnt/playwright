@@ -364,6 +364,7 @@ const playwrightFixtures: Fixtures<TestFixtures, WorkerFixtures> = ({
         recordVideo: {
           dir: tracing().artifactsDir(),
           size: typeof video === 'string' ? undefined : video.size,
+          retainLastSeconds: typeof video === 'string' ? undefined : video.retainLastSeconds,
         }
       } : {};
       const context = await browser.newContext({ ...videoOptions, ...options }) as BrowserContextImpl;

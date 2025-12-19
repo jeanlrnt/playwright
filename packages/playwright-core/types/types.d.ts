@@ -10199,6 +10199,12 @@ export interface Browser {
          */
         height: number;
       };
+
+      /**
+       * When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video
+       * file size, especially in failure scenarios. Optional.
+       */
+      retainLastSeconds?: number;
     };
 
     /**
@@ -15440,6 +15446,12 @@ export interface BrowserType<Unused = {}> {
          */
         height: number;
       };
+
+      /**
+       * When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video
+       * file size, especially in failure scenarios. Optional.
+       */
+      retainLastSeconds?: number;
     };
 
     /**
@@ -17113,6 +17125,12 @@ export interface AndroidDevice {
          */
         height: number;
       };
+
+      /**
+       * When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video
+       * file size, especially in failure scenarios. Optional.
+       */
+      retainLastSeconds?: number;
     };
 
     /**
@@ -19577,6 +19595,12 @@ export interface Electron {
          */
         height: number;
       };
+
+      /**
+       * When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video
+       * file size, especially in failure scenarios. Optional.
+       */
+      retainLastSeconds?: number;
     };
 
     /**
@@ -22538,6 +22562,12 @@ export interface BrowserContextOptions {
        */
       height: number;
     };
+
+    /**
+     * When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video
+     * file size, especially in failure scenarios. Optional.
+     */
+    retainLastSeconds?: number;
   };
 
   /**

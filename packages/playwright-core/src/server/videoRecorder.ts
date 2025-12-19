@@ -33,9 +33,14 @@ export class VideoRecorder {
   private _isStopped = false;
   private _ffmpegPath: string;
   private _launchPromise: Promise<Error | null>;
+  private _retainLastSeconds: number | undefined;
+  private _frameHistory: { timestamp: number, frameNumber: number, buffer: Buffer }[] = [];
+  private _isBufferingMode = false;
 
-  constructor(ffmpegPath: string, options: types.VideoOptions) {
+  constructor(ffmpegPath: string, options: types.VideoOptions & { retainLastSeconds?: number }) {
     this._ffmpegPath = ffmpegPath;
+    this._retainLastSeconds = options.retainLastSeconds;
+    this._isBufferingMode = !!this._retainLastSeconds;
     if (!options.outputFile.endsWith('.webm'))
       throw new Error('File must have .webm extension');
     this._launchPromise = this._launch(options).catch(e => e);
@@ -129,14 +134,29 @@ export class VideoRecorder {
 
     const frameNumber = Math.floor((timestamp - this._firstFrameTimestamp) * fps);
 
-    if (this._lastFrame) {
-      const repeatCount = frameNumber - this._lastFrame.frameNumber;
-      for (let i = 0; i < repeatCount; ++i)
-        this._frameQueue.push(this._lastFrame.buffer);
-      this._lastWritePromise = this._lastWritePromise.then(() => this._sendFrames());
-    }
+    if (this._isBufferingMode) {
+      // In buffering mode, store frames in history without writing them
+      this._lastFrame = { buffer: frame, timestamp, frameNumber };
+      this._frameHistory.push({ buffer: frame, timestamp, frameNumber });
+      
+      // Remove frames older than retainLastSeconds
+      if (this._retainLastSeconds) {
+        const cutoffTime = timestamp - this._retainLastSeconds;
+        while (this._frameHistory.length > 0 && this._frameHistory[0].timestamp < cutoffTime) {
+          this._frameHistory.shift();
+        }
+      }
+    } else {
+      // Normal mode: write frames immediately
+      if (this._lastFrame) {
+        const repeatCount = frameNumber - this._lastFrame.frameNumber;
+        for (let i = 0; i < repeatCount; ++i)
+          this._frameQueue.push(this._lastFrame.buffer);
+        this._lastWritePromise = this._lastWritePromise.then(() => this._sendFrames());
+      }
 
-    this._lastFrame = { buffer: frame, timestamp, frameNumber };
+      this._lastFrame = { buffer: frame, timestamp, frameNumber };
+    }
     this._lastWriteNodeTime = monotonicTime();
   }
 
@@ -159,13 +179,43 @@ export class VideoRecorder {
       throw error;
     if (this._isStopped || !this._lastFrame)
       return;
+    
+    this._isStopped = true;
+    
+    if (this._isBufferingMode && this._frameHistory.length > 0) {
+      // In buffering mode, write the buffered frames to ffmpeg
+      // First, reset the timestamp to start from 0
+      const firstTimestamp = this._frameHistory[0].timestamp;
+      this._firstFrameTimestamp = firstTimestamp;
+      
+      // Write all buffered frames
+      for (let i = 0; i < this._frameHistory.length; i++) {
+        const currentFrame = this._frameHistory[i];
+        const frameNumber = Math.floor((currentFrame.timestamp - firstTimestamp) * fps);
+        
+        if (i > 0) {
+          const prevFrame = this._frameHistory[i - 1];
+          const prevFrameNumber = Math.floor((prevFrame.timestamp - firstTimestamp) * fps);
+          const repeatCount = frameNumber - prevFrameNumber;
+          for (let j = 0; j < repeatCount; ++j)
+            this._frameQueue.push(prevFrame.buffer);
+        }
+        this._lastFrame = currentFrame;
+      }
+    }
+    
     // Pad with at least 1s of the last frame in the end for convenience.
     // This also ensures non-empty videos with 1 frame.
     const addTime = Math.max((monotonicTime() - this._lastWriteNodeTime) / 1000, 1);
-    this._writeFrame(Buffer.from([]), this._lastFrame.timestamp + addTime);
-    this._isStopped = true;
+    const lastFrameNumber = this._lastFrame ? Math.floor((this._lastFrame.timestamp - this._firstFrameTimestamp) * fps) : 0;
+    const finalFrameNumber = Math.floor((this._lastFrame!.timestamp + addTime - this._firstFrameTimestamp) * fps);
+    const repeatCount = finalFrameNumber - lastFrameNumber;
+    for (let i = 0; i < repeatCount; ++i)
+      this._frameQueue.push(this._lastFrame!.buffer);
+    
     try {
       await this._lastWritePromise;
+      await this._sendFrames();
       await this._gracefullyClose!();
     } catch (e) {
       debugLogger.log('error', `ffmpeg failed to stop: ${String(e)}`);

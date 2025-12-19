@@ -587,6 +587,7 @@ export default defineConfig({
   - `screenshots` ?<[boolean]> Whether to capture screenshots during tracing. Screenshots are used to build a timeline preview. Defaults to true. Optional.
   - `snapshots` ?<[boolean]> Whether to capture DOM snapshot on every action. Defaults to true. Optional.
   - `sources` ?<[boolean]> Whether to include source files for trace actions. Defaults to true. Optional.
+  - `retainLastSeconds` ?<[int]> When specified, only the last N seconds of the trace recording will be retained. This is useful for reducing trace file size, especially in failure scenarios. Optional.
 
 Whether to record trace for each test. Defaults to `'off'`.
 * `'off'`: Do not record trace.
@@ -634,6 +635,7 @@ export default defineConfig({
   - `size` ?<[Object]> Size of the recorded video. Optional.
     - `width` <[int]>
     - `height` <[int]>
+  - `retainLastSeconds` ?<[int]> When specified, only the last N seconds of the video recording will be retained. This is useful for reducing video file size, especially in failure scenarios. Optional.
 
 Whether to record video for each test. Defaults to `'off'`.
 * `'off'`: Do not record video.
