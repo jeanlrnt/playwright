@@ -141,7 +141,7 @@ export class VideoRecorder {
       
       // Remove frames older than retainLastSeconds
       if (this._retainLastSeconds) {
-        const cutoffTime = timestamp - this._retainLastSeconds;
+        const cutoffTime = timestamp - (this._retainLastSeconds * 1000);
         while (this._frameHistory.length > 0 && this._frameHistory[0].timestamp < cutoffTime) {
           this._frameHistory.shift();
         }
